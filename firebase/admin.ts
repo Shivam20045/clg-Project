@@ -10,10 +10,20 @@ function initFirebaseAdmin() {
       ? rawPrivateKey.replace(/^"|"$/g, "").replace(/\\n/g, "\n")
       : undefined;
 
+    const projectId =
+      process.env.FIREBASE_PROJECT_ID ||
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+    if (!projectId || !clientEmail || !privateKey) {
+      return;
+    }
+
     initializeApp({
       credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        projectId,
+        clientEmail,
         privateKey,
       }),
     });
@@ -25,10 +35,21 @@ function initFirebaseAdmin() {
 function lazy<T extends object>(getter: () => T): T {
   return new Proxy({} as T, {
     get(_, prop) {
+      if (prop === "prototype" || prop === "then" || prop === "$$typeof") {
+        return undefined;
+      }
+
       initFirebaseAdmin();
-      const real = getter() as any;
-      const value = real[prop];
-      return typeof value === "function" ? value.bind(real) : value;
+      if (!getApps().length) return undefined;
+
+      try {
+        const real = getter() as any;
+        if (!real) return undefined;
+        const value = real[prop];
+        return typeof value === "function" ? value.bind(real) : value;
+      } catch {
+        return undefined;
+      }
     },
   });
 }
