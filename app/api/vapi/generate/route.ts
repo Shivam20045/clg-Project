@@ -1,17 +1,20 @@
-import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { db } from "@/firebase/admin";
-import { getRandomInterviewCover } from "@/lib/utils";
-
+// Imports are loaded inside the handlers (not at the top) so that a package
+// crashing on load can't break `next build` at "Collecting page data".
 export async function POST(request: Request) {
-  const { type, role, level, techstack, amount, userid } = await request.json();
-
   try {
-    const { text: questions } = await generateText({
-      model: google("gemini-2.0-flash-001"),
+    const { type, role, level, techstack, amount, userid } =
+      await request.json();
+
+    const { generateText } = await import("ai");
+    const { google } = await import("@ai-sdk/google");
+    const { db } = await import("@/firebase/admin");
+    const { getRandomInterviewCover } = await import("@/lib/utils");
+
+    const { text } = await generateText({
+      model: google("gemini-2.5-flash"),
       prompt: `Prepare questions for a job interview.
         The job role is ${role}.
         The job experience level is ${level}.
@@ -22,17 +25,18 @@ export async function POST(request: Request) {
         The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
         Return the questions formatted like this:
         ["Question 1", "Question 2", "Question 3"]
-        
-        Thank you! <3
     `,
     });
 
+    // Gemini sometimes wraps JSON in ```json fences
+    const cleaned = text.replace(/```json|```/g, "").trim();
+
     const interview = {
-      role: role,
-      type: type,
-      level: level,
-      techstack: techstack.split(","),
-      questions: JSON.parse(questions),
+      role,
+      type,
+      level,
+      techstack: String(techstack).split(","),
+      questions: JSON.parse(cleaned),
       userId: userid,
       finalized: true,
       coverImage: getRandomInterviewCover(),
@@ -44,7 +48,10 @@ export async function POST(request: Request) {
     return Response.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Error:", error);
-    return Response.json({ success: false, error: error }, { status: 500 });
+    return Response.json(
+      { success: false, error: String(error) },
+      { status: 500 }
+    );
   }
 }
 
