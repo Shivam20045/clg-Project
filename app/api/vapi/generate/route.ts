@@ -1,5 +1,7 @@
 import { generateText } from "ai";
 import { google } from "@ai-sdk/google";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";

@@ -1,26 +1,33 @@
 import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
+import { getFirestore, Firestore } from "firebase-admin/firestore";
 
-// Initialize Firebase Admin SDK
+// Runs only on first use, never at import/build time.
 function initFirebaseAdmin() {
-  const apps = getApps();
-
-  if (!apps.length) {
+  if (!getApps().length) {
     initializeApp({
       credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Replace newlines in the private key
+        // Replace escaped newlines in the private key
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       }),
     });
   }
-
-  return {
-    auth: getAuth(),
-    db: getFirestore(),
-  };
 }
 
-export const { auth, db } = initFirebaseAdmin();
+// Lazy proxies: existing code like `db.collection(...)` and `auth.verifyIdToken(...)`
+// keeps working, but Firebase is only initialized when one of them is actually used.
+function lazy<T extends object>(getter: () => T): T {
+  return new Proxy({} as T, {
+    get(_, prop) {
+      initFirebaseAdmin();
+      const real = getter() as any;
+      const value = real[prop];
+      return typeof value === "function" ? value.bind(real) : value;
+    },
+  });
+}
+
+export const auth: Auth = lazy(() => getAuth());
+export const db: Firestore = lazy(() => getFirestore());
