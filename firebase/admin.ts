@@ -5,12 +5,16 @@ import { getFirestore, Firestore } from "firebase-admin/firestore";
 // Runs only on first use, never at import/build time.
 function initFirebaseAdmin() {
   if (!getApps().length) {
+    const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const privateKey = rawPrivateKey
+      ? rawPrivateKey.replace(/^"|"$/g, "").replace(/\\n/g, "\n")
+      : undefined;
+
     initializeApp({
       credential: cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Replace escaped newlines in the private key
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        privateKey,
       }),
     });
   }
