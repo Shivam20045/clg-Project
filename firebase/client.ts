@@ -1,8 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { getApp, getApps, initializeApp } from "firebase/app";
-// import { getAnalytics } from "firebase/analytics";
-import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -26,39 +25,33 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Lazy singleton — only initialised when first accessed, safe during SSR/build.
+// Returns (or creates) the Firebase app instance. Safe to call multiple times.
 function getFirebaseApp() {
   return !getApps().length ? initializeApp(firebaseConfig) : getApp();
 }
 
-// Lazy proxy helpers so that top-level `export const auth` and `export const db`
-// do NOT trigger Firebase initialisation at module-evaluation time (which would
-// crash during Next.js build when browser APIs are unavailable).
-function lazyAuth(): Auth {
-  return new Proxy({} as Auth, {
-    get(_, prop) {
-      if (typeof prop !== "string") return undefined;
-      if (prop === "prototype" || prop === "then" || prop === "$$typeof")
-        return undefined;
-      const real = getAuth(getFirebaseApp()) as any;
-      const value = real[prop];
-      return typeof value === "function" ? value.bind(real) : value;
-    },
-  });
-}
+// Lazy proxy — getAuth() and getFirestore() are deferred until the first
+// property access, so they are never called at module-evaluation time.
+// This prevents crashes during Next.js SSR / Vercel build where browser
+// globals (indexedDB, navigator, etc.) are unavailable.
+export const auth: Auth = new Proxy({} as Auth, {
+  get(_, prop) {
+    if (typeof prop !== "string") return undefined;
+    if (prop === "prototype" || prop === "then" || prop === "$$typeof")
+      return undefined;
+    const real = getAuth(getFirebaseApp()) as any;
+    const value = real[prop];
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
 
-function lazyDb(): Firestore {
-  return new Proxy({} as Firestore, {
-    get(_, prop) {
-      if (typeof prop !== "string") return undefined;
-      if (prop === "prototype" || prop === "then" || prop === "$$typeof")
-        return undefined;
-      const real = getFirestore(getFirebaseApp()) as any;
-      const value = real[prop];
-      return typeof value === "function" ? value.bind(real) : value;
-    },
-  });
-}
-
-export const auth: Auth = lazyAuth();
-export const db: Firestore = lazyDb();
+export const db: Firestore = new Proxy({} as Firestore, {
+  get(_, prop) {
+    if (typeof prop !== "string") return undefined;
+    if (prop === "prototype" || prop === "then" || prop === "$$typeof")
+      return undefined;
+    const real = getFirestore(getFirebaseApp()) as any;
+    const value = real[prop];
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
