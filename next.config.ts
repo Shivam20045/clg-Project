@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Prevent firebase-admin from being bundled into the client/edge runtime
+  serverExternalPackages: [
+    "firebase-admin",
+    "firebase-admin/app",
+    "firebase-admin/auth",
+    "firebase-admin/firestore",
+  ],
 };
 
 export default nextConfig;
