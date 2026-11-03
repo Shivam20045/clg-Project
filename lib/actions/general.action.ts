@@ -1,10 +1,6 @@
 "use server";
 
-import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
-
 import { db } from "@/firebase/admin";
-import { feedbackSchema } from "@/constants";
 
 export async function createFeedback(params: CreateFeedbackParams) {
   let stage = "validation";
@@ -46,6 +42,10 @@ export async function createFeedback(params: CreateFeedbackParams) {
 
     stage = "Gemini generation";
 
+    // Load generation dependencies only when evaluating a completed interview.
+    // Reading saved feedback must not initialize the AI SDK during page collection.
+    const { generateObject } = await import("ai");
+    const { feedbackSchema } = await import("@/constants");
     const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
     const provider = createGoogleGenerativeAI({ apiKey });
 
@@ -111,6 +111,9 @@ export async function getFeedbackByInterviewId(
   params: GetFeedbackByInterviewIdParams
 ): Promise<Feedback | null> {
   const { interviewId, userId } = params;
+
+  // Never pass missing IDs to Firestore query constraints.
+  if (!interviewId || !userId) return null;
 
   const querySnapshot = await db
     .collection("feedback")
