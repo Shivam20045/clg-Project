@@ -6,7 +6,12 @@ const Page = async () => {
 
   return (
     <>
-      <h3>Interview generation</h3>
+      <h3>Create interview questions</h3>
+      <p>
+        This call sets up your interview questions. To get feedback, return to
+        the dashboard, choose View Interview on an interview card, and answer
+        the questions in that interview.
+      </p>
 
       <Agent
         userName={user?.name!}

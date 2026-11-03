@@ -294,16 +294,26 @@ const Agent = ({
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    if (isEnding || feedbackInProgressRef.current) return;
     setIsEnding(true);
 
     try {
-      // The call-end event changes the status to FINISHED.
-      vapi.stop();
+      // stop() resolves even when the SDK does not emit call-end.
+      // Completing either path must start the same feedback flow.
+      await vapi.stop();
+
+      if (mountedRef.current) {
+        setIsSpeaking(false);
+        setIsEnding(false);
+        setCallStatus(CallStatus.FINISHED);
+      }
     } catch (cause) {
       console.error("Call stop failed:", cause);
-      setIsEnding(false);
-      setError("Call end nahi ho saki. Dobara try karo.");
+      if (mountedRef.current) {
+        setIsEnding(false);
+        setError("Call end nahi ho saki. Dobara try karo.");
+      }
     }
   };
 
