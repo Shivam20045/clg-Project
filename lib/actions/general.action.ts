@@ -51,21 +51,22 @@ export async function createFeedback(params: CreateFeedbackParams) {
 
     const { object } = await generateObject({
       model: provider(
-        process.env.GEMINI_MODEL || "gemini-2.0-flash-001",
+        process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
         { structuredOutputs: false }
       ),
       schema: feedbackSchema,
+      abortSignal: AbortSignal.timeout(45_000),
       system: "You are a professional mock interview evaluator.",
       prompt: `
 Evaluate the candidate's answers in this interview transcript:
 ${formattedTranscript}
 
-Score each category from 0 to 100:
+Score each category from 0 to 100. Use these exact category names in this order:
 - Communication Skills
 - Technical Knowledge
-- Problem-Solving
-- Cultural & Role Fit
-- Confidence & Clarity
+- Problem Solving
+- Cultural Fit
+- Confidence and Clarity
 
 Provide category comments, an overall score, strengths,
 areas for improvement, and a final assessment.

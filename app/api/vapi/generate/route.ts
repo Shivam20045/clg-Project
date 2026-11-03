@@ -18,16 +18,17 @@ export async function POST(request: Request) {
     } = body;
 
     const { generateText } = await import("ai");
-    const { google } = await import("@ai-sdk/google");
+    const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
     const { db } = await import("@/firebase/admin");
     const { getRandomInterviewCover } = await import("@/lib/utils");
 
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY;
-    }
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Gemini API key is missing");
+    const google = createGoogleGenerativeAI({ apiKey });
 
     const { text } = await generateText({
-      model: google("gemini-2.0-flash-001"),
+      model: google(process.env.GEMINI_MODEL || "gemini-3.5-flash-lite"),
+      abortSignal: AbortSignal.timeout(45_000),
       prompt: `Prepare questions for a job interview.
         The job role is ${role}.
         The job experience level is ${level}.

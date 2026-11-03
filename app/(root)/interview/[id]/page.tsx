@@ -10,6 +10,9 @@ import {
 } from "@/lib/actions/general.action";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 
+// Allow the feedback server action time to finish before Vercel ends the request.
+export const maxDuration = 60;
+
 const InterviewDetails = async ({ params }: RouteParams) => {
   const { id } = await params;
 
