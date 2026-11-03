@@ -9,14 +9,14 @@
     "lint": "next lint"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.1.25",
     "@hookform/resolvers": "^4.1.3",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.2",
-    "@vapi-ai/web": "^2.7.0",
+    "@vapi-ai/web": "^3.1.0",
     "ai": "^4.1.61",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

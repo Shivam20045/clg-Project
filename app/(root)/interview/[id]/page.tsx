@@ -2,26 +2,32 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import Agent from "@/components/Agent";
+import DisplayTechIcons from "@/components/DisplayTechIcons";
 import { getRandomInterviewCover } from "@/lib/utils";
-
 import {
   getFeedbackByInterviewId,
   getInterviewById,
 } from "@/lib/actions/general.action";
 import { getCurrentUser } from "@/lib/actions/auth.action";
-import DisplayTechIcons from "@/components/DisplayTechIcons";
 
 const InterviewDetails = async ({ params }: RouteParams) => {
   const { id } = await params;
 
   const user = await getCurrentUser();
 
+  if (!user?.id) {
+    redirect("/sign-in");
+  }
+
   const interview = await getInterviewById(id);
-  if (!interview) redirect("/");
+
+  if (!interview) {
+    redirect("/");
+  }
 
   const feedback = await getFeedbackByInterviewId({
     interviewId: id,
-    userId: user?.id!,
+    userId: user.id,
   });
 
   return (
@@ -31,12 +37,14 @@ const InterviewDetails = async ({ params }: RouteParams) => {
           <div className="flex flex-row gap-4 items-center">
             <Image
               src={getRandomInterviewCover()}
-              alt="cover-image"
+              alt="Interview cover"
               width={40}
               height={40}
               className="rounded-full object-cover size-[40px]"
             />
-            <h3 className="capitalize">{interview.role} Interview</h3>
+            <h3 className="capitalize">
+              {interview.role} Interview
+            </h3>
           </div>
 
           <DisplayTechIcons techStack={interview.techstack} />
@@ -48,8 +56,8 @@ const InterviewDetails = async ({ params }: RouteParams) => {
       </div>
 
       <Agent
-        userName={user?.name!}
-        userId={user?.id}
+        userName={user.name}
+        userId={user.id}
         interviewId={id}
         type="interview"
         questions={interview.questions}

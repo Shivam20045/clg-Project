@@ -7,67 +7,97 @@ import { db } from "@/firebase/admin";
 import { feedbackSchema } from "@/constants";
 
 export async function createFeedback(params: CreateFeedbackParams) {
-  console.log("createFeedback called with:", params);
-  const { interviewId, userId, transcript, feedbackId } = params;
+  let stage = "validation";
 
-  try {  
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY;
+  try {
+    const { interviewId, userId, transcript, feedbackId } = params;
+
+    if (!interviewId || !userId) {
+      throw new Error("Missing interviewId or userId");
+    }
+
+    if (!transcript?.length) {
+      throw new Error("No transcript received from the interview");
+    }
+
+    const apiKey =
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
+      process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Gemini API key is missing");
     }
 
     const formattedTranscript = transcript
-      .map(
-        (sentence: { role: string; content: string }) =>
-          `- ${sentence.role}: ${sentence.content}\n`
-      )
-      .join("");
+      .map(({ role, content }) => `${role}: ${content}`)
+      .join("\n");
 
-    const { object } = await generateObject({
-      model: google("gemini-2.0-flash-001", {
-        structuredOutputs: false,
-      }),
-      schema: feedbackSchema,
-      prompt: `
-        You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
-        Transcript:
-        ${formattedTranscript}
-
-        Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
-        - **Communication Skills**: Clarity, articulation, structured responses.
-        - **Technical Knowledge**: Understanding of key concepts for the role.
-        - **Problem-Solving**: Ability to analyze problems and propose solutions.
-        - **Cultural & Role Fit**: Alignment with company values and job role.
-        - **Confidence & Clarity**: Confidence in responses, engagement, and clarity.
-        `,
-      system:
-        "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
-    });
-
-    const feedback = {
-      interviewId: interviewId,
-      userId: userId,
-      totalScore: object.totalScore,
-      categoryScores: object.categoryScores,
-      strengths: object.strengths,
-      areasForImprovement: object.areasForImprovement,
-      finalAssessment: object.finalAssessment,
-      createdAt: new Date().toISOString(),
-    };
-
-    let feedbackRef;
-
-    if (feedbackId) {
-      feedbackRef = db.collection("feedback").doc(feedbackId);
-    } else {
-      feedbackRef = db.collection("feedback").doc();
+    if (!transcript.some(
+      ({ role, content }) => role === "user" && content.trim()
+    )) {
+      throw new Error("Transcript contains no user answers");
     }
 
-    await feedbackRef.set(feedback);
+    console.log("Feedback input validated", {
+      interviewId,
+      userId,
+      transcriptEntries: transcript.length,
+    });
+
+    stage = "Gemini generation";
+
+    const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
+    const provider = createGoogleGenerativeAI({ apiKey });
+
+    const { object } = await generateObject({
+      model: provider(
+        process.env.GEMINI_MODEL || "gemini-2.0-flash-001",
+        { structuredOutputs: false }
+      ),
+      schema: feedbackSchema,
+      system: "You are a professional mock interview evaluator.",
+      prompt: `
+Evaluate the candidate's answers in this interview transcript:
+${formattedTranscript}
+
+Score each category from 0 to 100:
+- Communication Skills
+- Technical Knowledge
+- Problem-Solving
+- Cultural & Role Fit
+- Confidence & Clarity
+
+Provide category comments, an overall score, strengths,
+areas for improvement, and a final assessment.
+`,
+    });
+
+    stage = "Firestore save";
+
+    const feedbackRef = feedbackId
+      ? db.collection("feedback").doc(feedbackId)
+      : db.collection("feedback").doc();
+
+    await feedbackRef.set({
+      interviewId,
+      userId,
+      ...object,
+      createdAt: new Date().toISOString(),
+    });
+
+    console.log("Feedback saved:", feedbackRef.id);
 
     return { success: true, feedbackId: feedbackRef.id };
   } catch (error) {
-    console.error("Error saving feedback:", error);
-    return { success: false };
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
+
+    console.error(`Feedback failed during ${stage}:`, error);
+
+    return {
+      success: false,
+      error: `Feedback failed during ${stage}: ${message}`,
+    };
   }
 }
 
