@@ -112,6 +112,9 @@ export async function getFeedbackByInterviewId(
 ): Promise<Feedback | null> {
   const { interviewId, userId } = params;
 
+  // Never pass missing IDs to Firestore query constraints.
+  if (!interviewId || !userId) return null;
+
   const querySnapshot = await db
     .collection("feedback")
     .where("interviewId", "==", interviewId)
