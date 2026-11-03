@@ -1,24 +1,25 @@
 import Agent from "@/components/Agent";
+import InterviewSetupForm from "@/components/InterviewSetupForm";
 import { getCurrentUser } from "@/lib/actions/auth.action";
+import { redirect } from "next/navigation";
+
+export const maxDuration = 60;
 
 const Page = async () => {
   const user = await getCurrentUser();
+  if (!user?.id) redirect("/sign-in");
 
   return (
     <>
-      <h3>Create interview questions</h3>
-      <p>
-        This call sets up your interview questions. To get feedback, return to
-        the dashboard, choose View Interview on an interview card, and answer
-        the questions in that interview.
-      </p>
+      <h3>Create an interview</h3>
+      <p>Choose your role and questions. Once saved, your mock interview will open. Answer the questions there to receive feedback.</p>
+      <InterviewSetupForm />
 
-      <Agent
-        userName={user?.name!}
-        userId={user?.id}
-        profileImage={user?.profileURL}
-        type="generate"
-      />
+      <details className="mt-8">
+        <summary className="cursor-pointer text-lg">Set up questions using a voice call instead</summary>
+        <p className="my-5">After setup, return to the dashboard and select View Interview on your interview card.</p>
+        <Agent userName={user.name} userId={user.id} type="generate" />
+      </details>
     </>
   );
 };

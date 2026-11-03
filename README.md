@@ -136,6 +136,12 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser to view the project.
 
+### Create and take an interview
+
+Open `/interview`, complete the setup form, and choose **Create Interview**. The app generates and saves questions for the signed-in user before opening `/interview/<id>`. Start the voice call there, answer the questions, and choose **End** to generate feedback. The saved interview also appears on the dashboard.
+
+Voice-based question setup remains optional. Its Vapi workflow must POST to the deployed production `/api/vapi/generate` endpoint with `role`, `level`, `type`, `techstack`, `amount`, and the `userid` passed to the workflow. The endpoint returns `success` and `interviewId` only after saving. A missing user ID is rejected rather than saving an interview with no owner. Changing `NEXT_PUBLIC_BASE_URL` alone does not update an API URL configured in the Vapi dashboard.
+
 ## <a name="snippets">🕸️ Snippets</a>
 
 <details>
